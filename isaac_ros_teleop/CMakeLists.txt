@@ -19,12 +19,6 @@ if(BUILD_TESTING)
 
 endif()
 
-install(PROGRAMS
-  scripts/finger_joint_renamer.py
-  DESTINATION lib/${PROJECT_NAME}
-  RENAME finger_joint_renamer
-)
-
 # Embed versioning information into installed files
 ament_index_get_resource(ISAAC_ROS_COMMON_CMAKE_PATH isaac_ros_common_cmake_path isaac_ros_common)
 include("${ISAAC_ROS_COMMON_CMAKE_PATH}/isaac_ros_common-version-info.cmake")

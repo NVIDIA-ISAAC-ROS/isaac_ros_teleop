@@ -21,12 +21,13 @@ SPDX-License-Identifier: Apache-2.0
 <?xml-model href="http://download.ros.org/schema/package_format3.xsd" schematypens="http://www.w3.org/2001/XMLSchema"?>
 <package format="3">
   <name>isaac_teleop_core</name>
-  <version>4.4.0</version>
+  <version>4.5.0</version>
   <description>This package wraps IsaacTeleop as a ROS 2 package, which serves as the backend for Isaac ROS Teleop.</description>
   <maintainer email="isaac-ros-maintainers@nvidia.com">Isaac ROS Maintainers</maintainer>
   <license>Apache-2.0</license>
 
   <buildtool_depend>ament_cmake</buildtool_depend>
+  <buildtool_depend>ament_cmake_python</buildtool_depend>
 
   <exec_depend>python3-isaacteleop-pip-shim</exec_depend>
   <exec_depend>python3-msgpack</exec_depend>
