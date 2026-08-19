@@ -5,9 +5,22 @@ cmake_minimum_required(VERSION 3.22)
 project(isaac_ros_teleop)
 
 find_package(ament_cmake REQUIRED)
-find_package(ament_cmake_python REQUIRED)
 find_package(ament_cmake_auto REQUIRED)
+find_package(msgpack REQUIRED)
 ament_auto_find_build_dependencies()
+
+# Core logic lives in a library so both the node and the unit tests link it
+# (matches the Bazel pose_reset_node_lib seam).
+ament_auto_add_library(pose_reset_node_core SHARED src/pose_reset_node.cpp)
+target_include_directories(pose_reset_node_core PUBLIC
+  $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+  $<INSTALL_INTERFACE:include>
+)
+# msgpack is a plain CMake/rosdep dependency (not ament), so link it explicitly.
+target_link_libraries(pose_reset_node_core Eigen3::Eigen msgpackc)
+
+ament_auto_add_executable(pose_reset_node src/pose_reset_main.cpp)
+target_link_libraries(pose_reset_node pose_reset_node_core)
 
 if(BUILD_TESTING)
   find_package(ament_cmake_pytest REQUIRED)
@@ -17,6 +30,9 @@ if(BUILD_TESTING)
   find_package(ament_cmake_lint_cmake REQUIRED)
   ament_lint_cmake()
 
+  find_package(ament_cmake_gtest REQUIRED)
+  ament_add_gtest(test_pose_reset_node test/test_pose_reset_node.cpp)
+  target_link_libraries(test_pose_reset_node pose_reset_node_core)
 endif()
 
 # Embed versioning information into installed files

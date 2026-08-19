@@ -21,13 +21,24 @@ SPDX-License-Identifier: Apache-2.0
 <?xml-model href="http://download.ros.org/schema/package_format3.xsd" schematypens="http://www.w3.org/2001/XMLSchema"?>
 <package format="3">
   <name>isaac_ros_teleop</name>
-  <version>4.5.0</version>
+  <version>4.6.0</version>
   <description>ROS 2 launch package for the XR teleoperation publisher node</description>
   <maintainer email="isaac-ros-maintainers@nvidia.com">Isaac ROS Maintainers</maintainer>
   <license>Apache-2.0</license>
 
   <buildtool_depend>ament_cmake</buildtool_depend>
+  <buildtool_depend>ament_cmake_auto</buildtool_depend>
   <build_depend>isaac_ros_common</build_depend>
+  <build_depend>eigen</build_depend>
+
+  <!-- pose_reset_node C++ deps -->
+  <depend>rclcpp</depend>
+  <depend>geometry_msgs</depend>
+  <depend>std_msgs</depend>
+  <depend>std_srvs</depend>
+  <depend>tf2_ros</depend>
+  <depend>tf2_eigen</depend>
+  <depend>msgpack</depend>
 
   <exec_depend>isaac_teleop_core</exec_depend>
   <exec_depend>rclpy</exec_depend>
@@ -35,6 +46,7 @@ SPDX-License-Identifier: Apache-2.0
   <exec_depend>sensor_msgs</exec_depend>
 
   <test_depend>ament_cmake_copyright</test_depend>
+  <test_depend>ament_cmake_gtest</test_depend>
   <test_depend>ament_cmake_lint_cmake</test_depend>
   <test_depend>isaac_ros_test</test_depend>
   <test_depend>launch_testing_ament_cmake</test_depend>
