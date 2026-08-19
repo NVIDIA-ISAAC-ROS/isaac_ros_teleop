@@ -11,12 +11,21 @@ set(ISAACTELEOP_SRC "${CMAKE_CURRENT_SOURCE_DIR}/IsaacTeleop")
 set(TELEOP_ROS2_PYTHON_DIR "${ISAACTELEOP_SRC}/examples/teleop_ros2/python")
 set(TELEOP_ROS2_NODE_SCRIPT
     "${TELEOP_ROS2_PYTHON_DIR}/teleop_ros2_node.py")
+set(TELEOP_ROS2_HELPER_MODULES
+    "${TELEOP_ROS2_PYTHON_DIR}/assets.py"
+    "${TELEOP_ROS2_PYTHON_DIR}/constants.py"
+    "${TELEOP_ROS2_PYTHON_DIR}/geometry.py"
+    "${TELEOP_ROS2_PYTHON_DIR}/messages.py"
+    "${TELEOP_ROS2_PYTHON_DIR}/node_parameters.py"
+    "${TELEOP_ROS2_PYTHON_DIR}/session_config.py"
+    "${TELEOP_ROS2_PYTHON_DIR}/tensor_group_helpers.py")
 set(TELEOP_ROS2_RETARGETERS_PACKAGE teleop_ros2_retargeters)
 set(TELEOP_ROS2_RETARGETERS_DIR
     "${TELEOP_ROS2_PYTHON_DIR}/${TELEOP_ROS2_RETARGETERS_PACKAGE}")
 
 foreach(required_path IN ITEMS
     "${TELEOP_ROS2_NODE_SCRIPT}"
+    ${TELEOP_ROS2_HELPER_MODULES}
     "${TELEOP_ROS2_RETARGETERS_DIR}")
   if(NOT EXISTS "${required_path}")
     message(FATAL_ERROR
@@ -32,6 +41,11 @@ ament_python_install_package(
 
 # The `isaacteleop` Python package is provided by the pip shim dependency at
 # runtime; this package installs the ROS 2 entrypoint and its local helpers.
+install(FILES
+  ${TELEOP_ROS2_HELPER_MODULES}
+  DESTINATION lib/${PROJECT_NAME}
+)
+
 install(PROGRAMS
   "${TELEOP_ROS2_NODE_SCRIPT}"
   DESTINATION lib/${PROJECT_NAME}
