@@ -48,7 +48,7 @@ def generate_launch_description() -> LaunchDescription:
         DeclareLaunchArgument(
             name='ee_pose_topic',
             default_value='xr_teleop/ee_poses',
-            description='Topic for end-effector poses (PoseArray)',
+            description='Topic for end-effector poses (NamedPoseArray)',
         ),
         DeclareLaunchArgument(
             name='root_twist_topic',

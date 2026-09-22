@@ -23,6 +23,7 @@
 #include <mutex>
 #include <optional>
 #include <string>
+#include <string_view>
 #include <vector>
 
 #include "Eigen/Core"
@@ -58,17 +59,6 @@ namespace isaac_ros
 {
 namespace teleop
 {
-
-bool IsZeroPose(const geometry_msgs::msg::Pose & pose, double pos_tol, double rot_tol)
-{
-  const auto pos_norm = Eigen::Vector3d(
-    pose.position.x, pose.position.y, pose.position.z).norm();
-  const auto q = Eigen::Quaterniond(
-    pose.orientation.w, pose.orientation.x,
-    pose.orientation.y, pose.orientation.z);
-  const auto rot_angle = Eigen::AngleAxisd(q.normalized()).angle();
-  return pos_norm < pos_tol && std::abs(rot_angle) < rot_tol;
-}
 
 std::optional<Eigen::Isometry3d> ComputeParentPoseChild(
   const geometry_msgs::msg::Pose & left, const geometry_msgs::msg::Pose & right,
@@ -108,15 +98,35 @@ std::optional<Eigen::Isometry3d> ComputeParentPoseChild(
   return result;
 }
 
-std::optional<float> PositionDistance(
-  const geometry_msgs::msg::PoseArray & poses, int idx_a, int idx_b)
+std::optional<geometry_msgs::msg::Pose> FindValidNamedPose(
+  const teleop_ros2_interfaces::msg::NamedPoseArray & poses, std::string_view name)
 {
-  const int max_idx = std::max(idx_a, idx_b);
-  if (idx_a < 0 || idx_b < 0 || poses.poses.size() <= static_cast<size_t>(max_idx)) {
+  if (poses.name.size() != poses.pose.size() || poses.name.size() != poses.is_valid.size()) {
     return std::nullopt;
   }
-  const auto & a = poses.poses[idx_a].position;
-  const auto & b = poses.poses[idx_b].position;
+  for (size_t i = 0; i < poses.name.size(); ++i) {
+    if (std::string_view(poses.name[i]) != name) {
+      continue;
+    }
+    if (!poses.is_valid[i]) {
+      return std::nullopt;
+    }
+    return poses.pose[i];
+  }
+  return std::nullopt;
+}
+
+std::optional<float> PositionDistance(
+  const teleop_ros2_interfaces::msg::NamedPoseArray & poses,
+  std::string_view name_a, std::string_view name_b)
+{
+  const auto pose_a = FindValidNamedPose(poses, name_a);
+  const auto pose_b = FindValidNamedPose(poses, name_b);
+  if (!pose_a || !pose_b) {
+    return std::nullopt;
+  }
+  const auto & a = pose_a->position;
+  const auto & b = pose_b->position;
   const Eigen::Vector3d va(a.x, a.y, a.z);
   const Eigen::Vector3d vb(b.x, b.y, b.z);
   return static_cast<float>((va - vb).norm());
@@ -184,6 +194,14 @@ PoseResetNode::PoseResetNode(const rclcpp::NodeOptions & options)
   static_tf_broadcaster_(this),
   parent_frame_id_(declare_parameter<std::string>("parent_frame_id", "world")),
   child_frame_id_(declare_parameter<std::string>("child_frame_id", "base_link")),
+  left_thumb_tip_name_(declare_parameter<std::string>(
+      "left_thumb_tip_name", std::string(kLeftThumbTipName))),
+  left_little_tip_name_(declare_parameter<std::string>(
+      "left_little_tip_name", std::string(kLeftLittleTipName))),
+  right_thumb_tip_name_(declare_parameter<std::string>(
+      "right_thumb_tip_name", std::string(kRightThumbTipName))),
+  right_little_tip_name_(declare_parameter<std::string>(
+      "right_little_tip_name", std::string(kRightLittleTipName))),
   pinch_threshold_m_(declare_parameter<double>("pinch_threshold_m", 0.025)),
   press_threshold_(declare_parameter<double>("press_threshold", 0.5)),
   reset_button_combo_(declare_parameter<std::vector<std::string>>(
@@ -216,19 +234,19 @@ PoseResetNode::PoseResetNode(const rclcpp::NodeOptions & options)
     child_frame_offset_ = Eigen::Vector3d(offset[0], offset[1], offset[2]);
   }
 
-  ee_poses_sub_ = create_subscription<geometry_msgs::msg::PoseArray>(
+  ee_poses_sub_ = create_subscription<teleop_ros2_interfaces::msg::NamedPoseArray>(
     "/xr_teleop/ee_poses",
     rclcpp::SensorDataQoS(),
-    [this](const geometry_msgs::msg::PoseArray::ConstSharedPtr msg) {
+    [this](const teleop_ros2_interfaces::msg::NamedPoseArray::ConstSharedPtr msg) {
       onEePoses(msg);
     });
 
   // Pinch and button reset triggers are optional; enabled by their params below.
   if (pinch_threshold_m_ > 0.0) {
-    hand_sub_ = create_subscription<geometry_msgs::msg::PoseArray>(
+    hand_sub_ = create_subscription<teleop_ros2_interfaces::msg::NamedPoseArray>(
       "/xr_teleop/hand",
       rclcpp::SensorDataQoS(),
-      [this](const geometry_msgs::msg::PoseArray::ConstSharedPtr msg) {
+      [this](const teleop_ros2_interfaces::msg::NamedPoseArray::ConstSharedPtr msg) {
         onHand(*msg);
       });
   }
@@ -266,25 +284,21 @@ PoseResetNode::PoseResetNode(const rclcpp::NodeOptions & options)
     "pose_reset_node ready; will auto-anchor on the first valid EE reference.");
 }
 
-void PoseResetNode::onEePoses(const geometry_msgs::msg::PoseArray::ConstSharedPtr & msg)
+void PoseResetNode::onEePoses(
+  const teleop_ros2_interfaces::msg::NamedPoseArray::ConstSharedPtr & msg)
 {
-  if (msg->poses.size() < 2) {
+  const auto left = FindValidNamedPose(*msg, kLeftEeName);
+  const auto right = FindValidNamedPose(*msg, kRightEeName);
+  if (!left || !right) {
     RCLCPP_WARN_THROTTLE(
       get_logger(), *this->get_clock(), 1000,
-      "Expected 2 reference poses (left + right), got %zu — skipping update.",
-      msg->poses.size());
-    return;
-  }
-
-  if (IsZeroPose(msg->poses[0]) || IsZeroPose(msg->poses[1])) {
-    RCLCPP_WARN_THROTTLE(
-      get_logger(), *this->get_clock(), 1000,
-      "Received zero-valued reference pose (uninitialized upstream) — skipping update.");
+      "Expected valid named EE poses 'left' and 'right' on /xr_teleop/ee_poses — "
+      "skipping update.");
     return;
   }
 
   const std::optional<Eigen::Isometry3d> parent_pose_child =
-    ComputeParentPoseChild(msg->poses[0], msg->poses[1], child_frame_offset_);
+    ComputeParentPoseChild(*left, *right, child_frame_offset_);
   if (!parent_pose_child) {
     RCLCPP_WARN_THROTTLE(
       get_logger(), *this->get_clock(), 1000,
@@ -324,10 +338,12 @@ void PoseResetNode::onReset(
   }
 }
 
-void PoseResetNode::onHand(const geometry_msgs::msg::PoseArray & msg)
+void PoseResetNode::onHand(const teleop_ros2_interfaces::msg::NamedPoseArray & msg)
 {
-  const std::optional<float> left = PositionDistance(msg, kLeftThumbTipIdx, kLeftLittleTipIdx);
-  const std::optional<float> right = PositionDistance(msg, kRightThumbTipIdx, kRightLittleTipIdx);
+  const std::optional<float> left =
+    PositionDistance(msg, left_thumb_tip_name_, left_little_tip_name_);
+  const std::optional<float> right =
+    PositionDistance(msg, right_thumb_tip_name_, right_little_tip_name_);
   const bool pinched =
     left.has_value() && right.has_value() &&
     left.value() < pinch_threshold_m_ && right.value() < pinch_threshold_m_;
