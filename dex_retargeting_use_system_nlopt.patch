@@ -1,0 +1,13 @@
+--- dex_retargeting-0.4.6.dist-info/METADATA
++++ dex_retargeting-0.4.6.dist-info/METADATA
+@@ -26,10 +26,8 @@ License-File: LICENSE
+ Requires-Dist: numpy <2.0.0,>=1.21.0
+ Requires-Dist: pytransform3d >=3.5.0
+ Requires-Dist: pin >=2.7.0
+-Requires-Dist: nlopt <2.8.0,>=2.6.1
+ Requires-Dist: trimesh >=4.4.0
+ Requires-Dist: anytree >=2.12.0
+ Requires-Dist: pyyaml >=6.0.0
+ Requires-Dist: lxml >=5.2.2
+-Requires-Dist: torch
+ Provides-Extra: dev

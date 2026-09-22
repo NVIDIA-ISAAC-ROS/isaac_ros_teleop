@@ -69,30 +69,19 @@ std_msgs::msg::ByteMultiArray PackComboMsg(
 
 const std::vector<std::string> kCombo{"left_secondary_click", "right_secondary_click"};
 
+teleop_ros2_interfaces::msg::NamedPoseArray MakeNamedPoseArray(
+  const std::vector<std::string> & names,
+  const std::vector<geometry_msgs::msg::Pose> & poses,
+  const std::vector<bool> & valid)
+{
+  teleop_ros2_interfaces::msg::NamedPoseArray msg;
+  msg.name = names;
+  msg.pose = poses;
+  msg.is_valid = valid;
+  return msg;
+}
+
 }  // namespace
-
-// ----------------------------- IsZeroPose ---------------------------------
-
-TEST(IsZeroPose, IdentityAtOriginIsZero)
-{
-  EXPECT_TRUE(teleop::IsZeroPose(MakePose(0.0, 0.0, 0.0)));
-}
-
-TEST(IsZeroPose, OffsetPositionIsNotZero)
-{
-  EXPECT_FALSE(teleop::IsZeroPose(MakePose(0.5, 0.0, 0.0)));
-}
-
-TEST(IsZeroPose, RotatedOrientationIsNotZero)
-{
-  geometry_msgs::msg::Pose pose = MakePose(0.0, 0.0, 0.0);
-  const Eigen::Quaterniond q(Eigen::AngleAxisd(1.0, Eigen::Vector3d::UnitZ()));
-  pose.orientation.w = q.w();
-  pose.orientation.x = q.x();
-  pose.orientation.y = q.y();
-  pose.orientation.z = q.z();
-  EXPECT_FALSE(teleop::IsZeroPose(pose));
-}
 
 // ------------------------- ComputeParentPoseChild -------------------------
 
@@ -143,21 +132,46 @@ TEST(ComputeParentPoseChild, CoincidentReferencesAreDegenerate)
 
 TEST(PositionDistance, ComputesEuclideanDistance)
 {
-  geometry_msgs::msg::PoseArray poses;
-  poses.poses.resize(48);
-  poses.poses[teleop::kLeftThumbTipIdx] = MakePose(0.0, 0.0, 0.0);
-  poses.poses[teleop::kLeftLittleTipIdx] = MakePose(0.03, 0.04, 0.0);  // 0.05 away
+  const auto poses = MakeNamedPoseArray(
+    {"left_THUMB_TIP", "left_LITTLE_TIP"},
+    {MakePose(0.1, 0.0, 0.0), MakePose(0.13, 0.04, 0.0)},  // 0.05 away
+    {true, true});
   const auto d = teleop::PositionDistance(
-    poses, teleop::kLeftThumbTipIdx, teleop::kLeftLittleTipIdx);
+    poses, teleop::kLeftThumbTipName, teleop::kLeftLittleTipName);
   ASSERT_TRUE(d.has_value());
   EXPECT_NEAR(d.value(), 0.05f, 1e-5f);
 }
 
-TEST(PositionDistance, OutOfRangeReturnsNullopt)
+TEST(PositionDistance, MissingNameReturnsNullopt)
 {
-  geometry_msgs::msg::PoseArray poses;
-  poses.poses.resize(5);
-  EXPECT_FALSE(teleop::PositionDistance(poses, 0, 47).has_value());
+  const auto poses = MakeNamedPoseArray(
+    {"left_THUMB_TIP"},
+    {MakePose(0.1, 0.0, 0.0)},
+    {true});
+  EXPECT_FALSE(teleop::PositionDistance(
+    poses, teleop::kLeftThumbTipName, teleop::kLeftLittleTipName).has_value());
+}
+
+TEST(PositionDistance, InvalidPoseReturnsNullopt)
+{
+  const auto poses = MakeNamedPoseArray(
+    {"left_THUMB_TIP", "left_LITTLE_TIP"},
+    {MakePose(0.1, 0.0, 0.0), MakePose(0.13, 0.04, 0.0)},
+    {true, false});
+  EXPECT_FALSE(teleop::PositionDistance(
+    poses, teleop::kLeftThumbTipName, teleop::kLeftLittleTipName).has_value());
+}
+
+TEST(PositionDistance, ValidZeroPoseIsAccepted)
+{
+  const auto poses = MakeNamedPoseArray(
+    {"left_THUMB_TIP", "left_LITTLE_TIP"},
+    {MakePose(0.0, 0.0, 0.0), MakePose(0.03, 0.04, 0.0)},
+    {true, true});
+  const auto d = teleop::PositionDistance(
+    poses, teleop::kLeftThumbTipName, teleop::kLeftLittleTipName);
+  ASSERT_TRUE(d.has_value());
+  EXPECT_NEAR(d.value(), 0.05f, 1e-5f);
 }
 
 // --------------------------- EvaluateResetCombo ---------------------------

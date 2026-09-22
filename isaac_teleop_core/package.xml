@@ -21,7 +21,7 @@ SPDX-License-Identifier: Apache-2.0
 <?xml-model href="http://download.ros.org/schema/package_format3.xsd" schematypens="http://www.w3.org/2001/XMLSchema"?>
 <package format="3">
   <name>isaac_teleop_core</name>
-  <version>4.6.0</version>
+  <version>5.0.0</version>
   <description>This package wraps IsaacTeleop as a ROS 2 package, which serves as the backend for Isaac ROS Teleop.</description>
   <maintainer email="isaac-ros-maintainers@nvidia.com">Isaac ROS Maintainers</maintainer>
   <license>Apache-2.0</license>
@@ -29,15 +29,39 @@ SPDX-License-Identifier: Apache-2.0
   <buildtool_depend>ament_cmake</buildtool_depend>
   <buildtool_depend>ament_cmake_python</buildtool_depend>
 
-  <exec_depend>python3-isaacteleop-pip-shim</exec_depend>
+  <build_depend>libjsoncpp-dev</build_depend>
+  <build_depend>libwayland-dev</build_depend>
+  <build_depend>libx11-dev</build_depend>
+  <build_depend>patchelf</build_depend>
+  <build_depend>python3-pip</build_depend>
+  <build_depend>python3-uv-pip-shim</build_depend>
+
+  <exec_depend>adb</exec_depend>
+  <exec_depend>coturn</exec_depend>
+  <exec_depend>libatomic1</exec_depend>
+  <exec_depend>libbsd0</exec_depend>
+  <exec_depend>libegl1</exec_depend>
+  <exec_depend>libgl1</exec_depend>
+  <exec_depend>libglx0</exec_depend>
+  <exec_depend>libvulkan1</exec_depend>
+  <exec_depend>libx11-6</exec_depend>
+  <exec_depend>libxext6</exec_depend>
+  <exec_depend>python3-dex-retargeting-pip-shim</exec_depend>
   <exec_depend>python3-msgpack</exec_depend>
   <exec_depend>python3-msgpack-numpy</exec_depend>
+  <exec_depend>python3-nlopt</exec_depend>
   <exec_depend>geometry_msgs</exec_depend>
   <exec_depend>rcl_interfaces</exec_depend>
   <exec_depend>rclpy</exec_depend>
   <exec_depend>sensor_msgs</exec_depend>
   <exec_depend>std_msgs</exec_depend>
+  <depend>teleop_ros2_interfaces</depend>
   <exec_depend>tf2_ros</exec_depend>
+  <exec_depend>python3-numpy</exec_depend>
+  <exec_depend>python3-scipy-pip-shim</exec_depend>
+  <exec_depend>python3-torch-pip-shim</exec_depend>
+  <exec_depend>python3-websockets-pip-shim</exec_depend>
+  <exec_depend>python3-yaml</exec_depend>
 
   <export>
     <build_type>ament_cmake</build_type>

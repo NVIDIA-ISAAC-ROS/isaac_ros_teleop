@@ -20,14 +20,15 @@
 #include <mutex>
 #include <optional>
 #include <string>
+#include <string_view>
 #include <vector>
 
 #include "Eigen/Geometry"
 #include "geometry_msgs/msg/pose.hpp"
-#include "geometry_msgs/msg/pose_array.hpp"
 #include "rclcpp/rclcpp.hpp"
 #include "std_msgs/msg/byte_multi_array.hpp"
 #include "std_srvs/srv/trigger.hpp"
+#include "teleop_ros2_interfaces/msg/named_pose_array.hpp"
 #include "tf2_ros/static_transform_broadcaster.h"
 
 namespace nvidia
@@ -37,12 +38,12 @@ namespace isaac_ros
 namespace teleop
 {
 
-// PoseArray layout from /xr_teleop/hand is fixed by the upstream teleop_ros2
-// publisher — do NOT change these indices.
-inline constexpr int kRightThumbTipIdx = 3;
-inline constexpr int kRightLittleTipIdx = 23;
-inline constexpr int kLeftThumbTipIdx = 27;
-inline constexpr int kLeftLittleTipIdx = 47;
+inline constexpr std::string_view kLeftEeName = "left";
+inline constexpr std::string_view kRightEeName = "right";
+inline constexpr std::string_view kLeftThumbTipName = "left_THUMB_TIP";
+inline constexpr std::string_view kLeftLittleTipName = "left_LITTLE_TIP";
+inline constexpr std::string_view kRightThumbTipName = "right_THUMB_TIP";
+inline constexpr std::string_view kRightLittleTipName = "right_LITTLE_TIP";
 
 // Min XY separation (m) between EE references for a well-defined heading; below is degenerate.
 inline constexpr double kMinReferenceSeparationM = 1e-3;
@@ -51,21 +52,17 @@ inline constexpr double kMinReferenceSeparationM = 1e-3;
 // Pure helpers (free functions, unit-tested in test/test_pose_reset_node.cpp).
 // ---------------------------------------------------------------------------
 
-/// True for a ~zero position and ~identity-quaternion orientation (uninitialized sentinel pose).
-bool IsZeroPose(
-  const geometry_msgs::msg::Pose & pose, double pos_tol = 1e-3, double rot_tol = 1e-3);
-
 /// Build parent->child from the two EE poses: origin = XY midpoint (Z=0), heading from the line
 /// between them, plus a child-frame offset. Returns nullopt if they coincide in XY or non-finite.
-/// `left`=poses[0], `right`=poses[1] (/xr_teleop/ee_poses); swapping them yaws the frame 180 deg.
+/// Swapping `left` and `right` yaws the frame 180 deg.
 std::optional<Eigen::Isometry3d> ComputeParentPoseChild(
   const geometry_msgs::msg::Pose & left, const geometry_msgs::msg::Pose & right,
   const Eigen::Vector3d & child_frame_offset);
 
-/// Euclidean distance between the positions of two indexed poses in a PoseArray,
-/// or nullopt if either index is out of range.
+/// Euclidean distance between two valid named poses, or nullopt if either pose is unavailable.
 std::optional<float> PositionDistance(
-  const geometry_msgs::msg::PoseArray & poses, int idx_a, int idx_b);
+  const teleop_ros2_interfaces::msg::NamedPoseArray & poses,
+  std::string_view name_a, std::string_view name_b);
 
 /// Outcome of decoding /xr_teleop/controller_data for the configured reset combo.
 struct ResetComboState
@@ -93,7 +90,7 @@ public:
 private:
   /// Track the wrist-midpoint anchor from the EE references; broadcast once on the
   /// first valid reference so teleop resolves without a manual trigger.
-  void onEePoses(const geometry_msgs::msg::PoseArray::ConstSharedPtr & msg);
+  void onEePoses(const teleop_ros2_interfaces::msg::NamedPoseArray::ConstSharedPtr & msg);
 
   /// ~/reset handler — re-anchor the transform to the current EE references.
   void onReset(
@@ -101,7 +98,7 @@ private:
     std_srvs::srv::Trigger::Response::SharedPtr response);
 
   /// Re-anchor while a simultaneous bimanual pinch is held (glove teleop).
-  void onHand(const geometry_msgs::msg::PoseArray & msg);
+  void onHand(const teleop_ros2_interfaces::msg::NamedPoseArray & msg);
 
   /// Re-anchor while the configured button combination is held (controller teleop).
   void onControllerData(const std_msgs::msg::ByteMultiArray & msg);
@@ -127,6 +124,11 @@ private:
   std::string child_frame_id_;
   Eigen::Vector3d child_frame_offset_;
 
+  std::string left_thumb_tip_name_;
+  std::string left_little_tip_name_;
+  std::string right_thumb_tip_name_;
+  std::string right_little_tip_name_;
+
   // Glove pinch trigger (active when pinch_threshold_m_ > 0).
   double pinch_threshold_m_;
 
@@ -134,8 +136,8 @@ private:
   double press_threshold_;
   std::vector<std::string> reset_button_combo_;
 
-  rclcpp::Subscription<geometry_msgs::msg::PoseArray>::SharedPtr ee_poses_sub_;
-  rclcpp::Subscription<geometry_msgs::msg::PoseArray>::SharedPtr hand_sub_;
+  rclcpp::Subscription<teleop_ros2_interfaces::msg::NamedPoseArray>::SharedPtr ee_poses_sub_;
+  rclcpp::Subscription<teleop_ros2_interfaces::msg::NamedPoseArray>::SharedPtr hand_sub_;
   rclcpp::Subscription<std_msgs::msg::ByteMultiArray>::SharedPtr controller_sub_;
   rclcpp::Service<std_srvs::srv::Trigger>::SharedPtr reset_srv_;
 };
