@@ -40,8 +40,7 @@ set(ISAACTELEOP_CMAKE_ARGS
     -DBUILD_API_LAYERS=OFF
     -DBUILD_VIZ=OFF
     -DENABLE_CLANG_FORMAT_CHECK=OFF
-    -DENABLE_CLOUDXR_BUNDLE_CHECK=ON
-    -DBUNDLE_ROBOTIC_GROUNDING=OFF)
+    -DENABLE_CLOUDXR_BUNDLE_CHECK=ON)
 set(TELEOP_ROS2_EXAMPLE_DIR "${ISAACTELEOP_SRC}/examples/teleop_ros2")
 set(TELEOP_ROS2_PYTHON_DIR "${ISAACTELEOP_SRC}/examples/teleop_ros2/python")
 set(TELEOP_ROS2_NODE_SCRIPT
@@ -78,8 +77,10 @@ file(GLOB_RECURSE ISAACTELEOP_SOURCE_DEPENDENCIES
   CONFIGURE_DEPENDS
   "${ISAACTELEOP_SRC}/CMakeLists.txt"
   "${ISAACTELEOP_SRC}/VERSION"
+  "${ISAACTELEOP_SRC}/pyproject.toml"
   "${ISAACTELEOP_SRC}/cmake/*"
   "${ISAACTELEOP_SRC}/deps/*"
+  "${ISAACTELEOP_SRC}/examples/teleop_ros2/*"
   "${ISAACTELEOP_SRC}/src/*"
 )
 
@@ -128,7 +129,7 @@ install(CODE "
       --no-index
       --find-links \"${ISAACTELEOP_WHEEL_DIR}\"
       --no-deps
-      isaacteleop[cloudxr,retargeters]
+      isaacteleop[cloudxr,retargeters,grounding]
     RESULT_VARIABLE _isaacteleop_install_result
     OUTPUT_VARIABLE _isaacteleop_install_stdout
     ERROR_VARIABLE _isaacteleop_install_stderr

@@ -9,8 +9,8 @@
 # and provided through ISAACTELEOP_TP_ROOT. FETCHCONTENT_FULLY_DISCONNECTED=ON
 # prevents any outbound network calls during the cmake configure step.
 #
-# Python 3.12 is provided from the @ros2noble build-dep sysroot (python3.12-dev
-# apt layer). SetupPython.cmake's `uv python install` step is bypassed by
+# Python 3.12 is provided from the @ros2resolute build-dep sysroot
+# (python3.12-dev apt layer). SetupPython.cmake's `uv python install` step is bypassed by
 # setting ISAAC_TELEOP_PYTHON_CONFIGURED=TRUE via cmake cache. numpy >= 2.0 is
 # pre-extracted from ISAACTELEOP_NUMPY_WHL into a temp site-packages directory
 # and injected via PYTHONPATH so that SetupPython.cmake's numpy venv creation
@@ -20,7 +20,7 @@
 #   ISAACTELEOP_SRC                   — IsaacTeleop source tree root
 #   ISAACTELEOP_MANIFEST              — expected wheel file manifest
 #   ISAACTELEOP_OUT_ROOT              — Bazel output package root
-#   ISAACTELEOP_BUILD_DEP_LAYERS_MANIFEST — list of @ros2noble apt layer tarballs
+#   ISAACTELEOP_BUILD_DEP_LAYERS_MANIFEST — list of @ros2resolute apt layer tarballs
 #   ISAACTELEOP_PATCHELF              — patchelf executable
 #   ISAACTELEOP_UV_WHEEL              — uv pip wheel (.whl) for uv binary extraction
 #   ISAACTELEOP_TP_ROOT               — root of vendored FetchContent source trees
@@ -59,6 +59,12 @@ numpy_site="$build_root/numpy_site"
 mkdir -p "$src_overlay" "$tool_bin" "$build_dep_sysroot" "$numpy_site"
 cp -rs "$(cd "$ISAACTELEOP_SRC" && pwd)/." "$src_overlay/"
 
+# IsaacTeleop 1.5 stages public V2D robotic_grounding while assembling its
+# wheel.  Point its FetchContent directory at Bazel's verified archive and
+# suppress the upstream network download command.
+rm -f "$src_overlay/deps/v2d/fetch_v2d.cmake"
+printf 'return()\n' >"$src_overlay/deps/v2d/fetch_v2d.cmake"
+
 # ---------------------------------------------------------------------------
 # Compiler / cross-compilation selection (mirrors cuvslam_cmake_build.sh)
 # ---------------------------------------------------------------------------
@@ -90,8 +96,8 @@ fi
 # 1. flatc (the FlatBuffers schema compiler) must EXECUTE on the build host.
 #    cmake's FetchContent builds flatc with the cross-compiler → aarch64 ELF
 #    → "Exec format error" when cmake runs it for schema header generation.
-#    Fix: pre-build flatc with HOST gcc, patch GenerateFlatBuffers.cmake to
-#    use it via ISAACTELEOP_HOST_FLATC, set FLATBUFFERS_BUILD_FLATC=OFF.
+#    Fix: pre-build flatc with HOST gcc and redirect the upstream generator's
+#    target references to an imported host executable.
 #
 # 2. cmake's FindPython3 always re-detects Python3_SOABI by running the Python
 #    interpreter (host Python → cpython-312-x86_64-linux-gnu), and FORCE-sets
@@ -113,75 +119,18 @@ if $_cross_compile; then
     --parallel "$(/usr/bin/nproc)" >/dev/null 2>&1
   _host_flatc="$_fb_host_build/flatc"
 
-  # Patch GenerateFlatBuffers.cmake to accept ISAACTELEOP_HOST_FLATC, which
-  # lets us bypass the `$<TARGET_FILE:flatc>` generator expression (that target
-  # is disabled via FLATBUFFERS_BUILD_FLATC=OFF to prevent cross-compilation of
-  # the code-generator binary) and use the pre-built x86_64 flatc instead.
+  # Keep upstream's generator flags, outputs, and dependencies unchanged.
+  # Redirect references to flatc to an imported host executable so code
+  # generation can run while the remaining targets are cross-compiled.
+  # Use a separate target because upstream may force its own flatc target on.
   rm -f "$src_overlay/cmake/GenerateFlatBuffers.cmake"
-  cat >"$src_overlay/cmake/GenerateFlatBuffers.cmake" <<'CMAKE_PATCH'
-# SPDX-FileCopyrightText: Copyright (c) 2025 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
-# SPDX-License-Identifier: Apache-2.0
-#
-# Patched for hermetic cross-compilation: when ISAACTELEOP_HOST_FLATC is set,
-# use the pre-built host (x86_64) flatc instead of the cmake-built target so
-# that flatc can actually execute during the cross-compilation build step.
-
-function(generate_flatbuffer_headers OUT_VAR INPUT_DIR OUTPUT_DIR)
-  if(ISAACTELEOP_HOST_FLATC)
-    # Cross-compilation: use a pre-built host flatc (not a cmake target).
-    set(FLATC_EXECUTABLE "${ISAACTELEOP_HOST_FLATC}")
-    set(_flatc_dep "${ISAACTELEOP_HOST_FLATC}")
-  else()
-    # Ensure flatc is available from FetchContent.
-    if(NOT TARGET flatc)
-      message(FATAL_ERROR "flatc target not found. Make sure FlatBuffers is fetched via FetchContent before calling this function.")
-    endif()
-    # Use generator expression to get flatc executable path at build time.
-    set(FLATC_EXECUTABLE $<TARGET_FILE:flatc>)
-    set(_flatc_dep flatc)
-  endif()
-
-  # Find all .fbs files in input directory.
-  file(GLOB FBS_FILES RELATIVE ${INPUT_DIR} CONFIGURE_DEPENDS "${INPUT_DIR}/*.fbs")
-  if(NOT FBS_FILES)
-    message(FATAL_ERROR "No .fbs files found in ${INPUT_DIR}")
-    set(${OUT_VAR} "" PARENT_SCOPE)
-    return()
-  endif()
-
-  set(GENERATED_HEADER_LIST "")
-
-  foreach(SCHEMA_FILE IN LISTS FBS_FILES)
-    get_filename_component(SCHEMA_NAME ${SCHEMA_FILE} NAME_WE)
-    set(OUT_HEADER "${OUTPUT_DIR}/${SCHEMA_NAME}_generated.h")
-    set(OUT_BFBS_HEADER "${OUTPUT_DIR}/${SCHEMA_NAME}_bfbs_generated.h")
-
-    add_custom_command(
-      OUTPUT ${OUT_HEADER} ${OUT_BFBS_HEADER}
-      COMMAND ${CMAKE_COMMAND} -E make_directory ${OUTPUT_DIR}
-      COMMAND ${FLATC_EXECUTABLE}
-              --cpp
-              --cpp-ptr-type std::shared_ptr
-              --gen-object-api
-              --gen-mutable
-              --schema
-              --bfbs-gen-embed
-              --reflect-names
-              --reflect-types
-              -I ${INPUT_DIR}
-              -o ${OUTPUT_DIR}
-              ${INPUT_DIR}/${SCHEMA_FILE}
-      DEPENDS ${INPUT_DIR}/${SCHEMA_FILE} ${_flatc_dep}
-      COMMENT "Generating FlatBuffers C++ for ${SCHEMA_FILE}"
-      VERBATIM
-    )
-
-    list(APPEND GENERATED_HEADER_LIST ${OUT_HEADER} ${OUT_BFBS_HEADER})
-  endforeach()
-
-  set(${OUT_VAR} ${GENERATED_HEADER_LIST} PARENT_SCOPE)
-endfunction()
+  {
+    cat <<'CMAKE_PATCH'
+add_executable(isaacteleop_host_flatc IMPORTED GLOBAL)
+set_target_properties(isaacteleop_host_flatc PROPERTIES IMPORTED_LOCATION "${ISAACTELEOP_HOST_FLATC}")
 CMAKE_PATCH
+    sed 's/\<flatc\>/isaacteleop_host_flatc/g' "$ISAACTELEOP_SRC/cmake/GenerateFlatBuffers.cmake"
+  } >"$src_overlay/cmake/GenerateFlatBuffers.cmake"
 fi
 
 # Stage CloudXR SDK tarball so cmake finds it at deps/cloudxr/<filename>.
@@ -258,13 +207,19 @@ sed \
 # read-only permissions (r-xr-xr-x from the Bazel sandbox). On subsequent
 # runs the destination files can't be overwritten → PermissionError. Fix:
 # chmod the destination to 0o644 before copying if it already exists.
-_runtime_py="$src_overlay/src/core/cloudxr/python/runtime.py"
+_runtime_relative_path="src/python/isaacteleop/cloudxr/runtime.py"
+_runtime_source="$ISAACTELEOP_SRC/$_runtime_relative_path"
+_runtime_py="$src_overlay/$_runtime_relative_path"
+[[ -f $_runtime_source ]] || {
+  echo "Missing IsaacTeleop CloudXR runtime at $_runtime_relative_path" >&2
+  exit 1
+}
 rm -f "$_runtime_py"
 sed \
   -e 's|shutil\.copy2(src, os\.path\.join(openxr_dir, name))|dst = os.path.join(openxr_dir, name)\n        if os.path.exists(dst):\n            os.chmod(dst, 0o644)\n        shutil.copy2(src, dst)|' \
-  "$ISAACTELEOP_SRC/src/core/cloudxr/python/runtime.py" \
+  "$_runtime_source" \
   >"$_runtime_py"
-unset _runtime_py
+unset _runtime_relative_path _runtime_source _runtime_py
 
 rm -f "$stubgen_src/stubgen_pyproject.toml"
 cat >"$stubgen_src/stubgen_pyproject.toml" <<'TOML'
@@ -303,7 +258,7 @@ if __name__ == "__main__":
 PY
 
 # ---------------------------------------------------------------------------
-# Extract @ros2noble apt layers into a fake sysroot
+# Extract @ros2resolute apt layers into a fake sysroot
 # ---------------------------------------------------------------------------
 while IFS= read -r layer; do
   if [[ -n $layer ]]; then
@@ -408,7 +363,7 @@ python3_lib="$build_dep_libdir/libpython3.12.so"
 # ---------------------------------------------------------------------------
 /usr/bin/python3 -m zipfile -e "$ISAACTELEOP_NUMPY_WHL" "$numpy_site"
 # Include the sysroot's dist-packages so that python3-setuptools and python3-wheel
-# (extracted from @ros2noble apt layers) are importable by uv build --no-build-isolation.
+# (extracted from @ros2resolute apt layers) are importable by uv build --no-build-isolation.
 build_dep_dist_packages="$build_dep_sysroot/usr/lib/python3/dist-packages"
 export PYTHONPATH="$numpy_site:$build_dep_dist_packages${PYTHONPATH:+:$PYTHONPATH}"
 
@@ -522,8 +477,8 @@ if $_cross_compile; then
     -DCMAKE_C_COMPILER="$_c_compiler"
     -DCMAKE_CXX_COMPILER="$_cxx_compiler"
     -DPython3_SOABI="$_python_soabi"
-    # flatc is a BUILD-HOST tool; disable the cross-compiled FetchContent target
-    # and point cmake to the pre-built x86_64 flatc via GenerateFlatBuffers.cmake.
+    # GenerateFlatBuffers.cmake uses the host tool even if upstream overrides
+    # FLATBUFFERS_BUILD_FLATC and also creates its own cross-compiled target.
     -DFLATBUFFERS_BUILD_FLATC=OFF
     -DISAACTELEOP_HOST_FLATC="$_host_flatc"
   )
@@ -554,7 +509,8 @@ fi
   -DBUILD_API_LAYERS=OFF \
   -DBUILD_VIZ=OFF \
   -DENABLE_CLANG_FORMAT_CHECK=OFF \
-  -DBUNDLE_ROBOTIC_GROUNDING=OFF \
+  -DENABLE_CLOUDXR_EXP_BUNDLE=OFF \
+  "-DFETCHCONTENT_BASE_DIR=$ISAACTELEOP_TP_ROOT" \
   \
   -DFETCHCONTENT_FULLY_DISCONNECTED=ON \
   "-DFETCHCONTENT_SOURCE_DIR_SANITIZERS-CMAKE=$ISAACTELEOP_TP_ROOT/sanitizers-cmake" \

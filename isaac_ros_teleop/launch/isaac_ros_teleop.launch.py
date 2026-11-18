@@ -149,6 +149,11 @@ def generate_launch_description() -> LaunchDescription:
             description='Optional CloudXR env config file passed to the in-process launcher.',
         ),
         DeclareLaunchArgument(
+            name='cloudxr_client_route',
+            default_value='/real/isaacros',
+            description='CloudXR WebXR client route.',
+        ),
+        DeclareLaunchArgument(
             name='cloudxr_accept_eula',
             default_value='false',
             description='Accept the NVIDIA CloudXR EULA non-interactively.',
@@ -183,16 +188,24 @@ def generate_launch_description() -> LaunchDescription:
         name='teleop_ros2_node',
         parameters=[{
             'rate_hz': LaunchConfiguration('rate_hz'),
+            'mode': 'controller_teleop',
+            'hand_retargeter': 'trihand',
+            'hand_tracking_provider': 'native',
             'world_frame': LaunchConfiguration('world_frame'),
             'right_wrist_frame': LaunchConfiguration('right_wrist_frame'),
             'left_wrist_frame': LaunchConfiguration('left_wrist_frame'),
             'head_frame': LaunchConfiguration('head_frame'),
-            'left_finger_joint_names': LaunchConfiguration('left_finger_joint_names'),
-            'right_finger_joint_names': LaunchConfiguration('right_finger_joint_names'),
+            'left_finger_joint_names': ParameterValue(
+                LaunchConfiguration('left_finger_joint_names'), value_type=list[str]
+            ),
+            'right_finger_joint_names': ParameterValue(
+                LaunchConfiguration('right_finger_joint_names'), value_type=list[str]
+            ),
             'transform_rotation': LaunchConfiguration('transform_rotation'),
             'transform_translation': LaunchConfiguration('transform_translation'),
             'cloudxr_install_dir': LaunchConfiguration('cloudxr_install_dir'),
             'cloudxr_env_config': LaunchConfiguration('cloudxr_env_config'),
+            'cloudxr_client_route': LaunchConfiguration('cloudxr_client_route'),
             'cloudxr_accept_eula': LaunchConfiguration('cloudxr_accept_eula'),
             'cloudxr_setup_oob': LaunchConfiguration('cloudxr_setup_oob'),
             'cloudxr_usb_local': LaunchConfiguration('cloudxr_usb_local'),
@@ -227,4 +240,5 @@ def generate_launch_description() -> LaunchDescription:
         ],
     )
 
-    return LaunchDescription(declared_arguments + [teleop_publisher_node, pose_reset_node])
+    return LaunchDescription(
+        declared_arguments + [teleop_publisher_node, pose_reset_node])

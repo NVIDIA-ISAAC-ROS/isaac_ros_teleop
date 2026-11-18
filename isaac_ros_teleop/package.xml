@@ -21,7 +21,7 @@ SPDX-License-Identifier: Apache-2.0
 <?xml-model href="http://download.ros.org/schema/package_format3.xsd" schematypens="http://www.w3.org/2001/XMLSchema"?>
 <package format="3">
   <name>isaac_ros_teleop</name>
-  <version>5.0.0</version>
+  <version>5.1.0</version>
   <description>ROS 2 launch package for the XR teleoperation publisher node</description>
   <maintainer email="isaac-ros-maintainers@nvidia.com">Isaac ROS Maintainers</maintainer>
   <license>Apache-2.0</license>
@@ -42,6 +42,7 @@ SPDX-License-Identifier: Apache-2.0
   <depend>msgpack</depend>
 
   <exec_depend>isaac_teleop_core</exec_depend>
+  <exec_depend>ament_index_python</exec_depend>
   <exec_depend>rclpy</exec_depend>
   <exec_depend>ros2launch</exec_depend>
   <exec_depend>sensor_msgs</exec_depend>

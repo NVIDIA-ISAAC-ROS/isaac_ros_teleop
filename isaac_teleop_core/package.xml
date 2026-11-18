@@ -21,7 +21,7 @@ SPDX-License-Identifier: Apache-2.0
 <?xml-model href="http://download.ros.org/schema/package_format3.xsd" schematypens="http://www.w3.org/2001/XMLSchema"?>
 <package format="3">
   <name>isaac_teleop_core</name>
-  <version>5.0.0</version>
+  <version>5.1.0</version>
   <description>This package wraps IsaacTeleop as a ROS 2 package, which serves as the backend for Isaac ROS Teleop.</description>
   <maintainer email="isaac-ros-maintainers@nvidia.com">Isaac ROS Maintainers</maintainer>
   <license>Apache-2.0</license>
@@ -38,6 +38,7 @@ SPDX-License-Identifier: Apache-2.0
 
   <exec_depend>adb</exec_depend>
   <exec_depend>coturn</exec_depend>
+  <exec_depend>git</exec_depend>
   <exec_depend>libatomic1</exec_depend>
   <exec_depend>libbsd0</exec_depend>
   <exec_depend>libegl1</exec_depend>
@@ -47,6 +48,7 @@ SPDX-License-Identifier: Apache-2.0
   <exec_depend>libx11-6</exec_depend>
   <exec_depend>libxext6</exec_depend>
   <exec_depend>python3-dex-retargeting-pip-shim</exec_depend>
+  <exec_depend>python3-daqp-pip-shim</exec_depend>
   <exec_depend>python3-msgpack</exec_depend>
   <exec_depend>python3-msgpack-numpy</exec_depend>
   <exec_depend>python3-nlopt</exec_depend>
@@ -58,9 +60,14 @@ SPDX-License-Identifier: Apache-2.0
   <depend>teleop_ros2_interfaces</depend>
   <exec_depend>tf2_ros</exec_depend>
   <exec_depend>python3-numpy</exec_depend>
+  <exec_depend>python3-loop-rate-limiters-pip-shim</exec_depend>
+  <exec_depend>python3-pin-pip-shim</exec_depend>
+  <exec_depend>python3-pin-pink-pip-shim</exec_depend>
   <exec_depend>python3-scipy-pip-shim</exec_depend>
   <exec_depend>python3-torch-pip-shim</exec_depend>
+  <exec_depend>python3-trimesh-pip-shim</exec_depend>
   <exec_depend>python3-websockets-pip-shim</exec_depend>
+  <exec_depend>python3-viser-pip-shim</exec_depend>
   <exec_depend>python3-yaml</exec_depend>
 
   <export>
