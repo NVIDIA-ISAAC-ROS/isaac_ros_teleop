@@ -1,0 +1,10 @@
+--- wuji_sdk-2026.7.14.dist-info/METADATA
++++ wuji_sdk-2026.7.14.dist-info/METADATA
+@@ -14,7 +14,6 @@ Requires-Dist: pytest ; extra == 'dev'
+ Requires-Dist: mypy ; extra == 'dev'
+ Requires-Dist: numpy ; extra == 'retarget'
+ Requires-Dist: scipy ; extra == 'retarget'
+-Requires-Dist: nlopt ; extra == 'retarget'
+ Requires-Dist: pin ; extra == 'retarget'
+ Requires-Dist: pyyaml ; extra == 'retarget'
+ Provides-Extra: dev

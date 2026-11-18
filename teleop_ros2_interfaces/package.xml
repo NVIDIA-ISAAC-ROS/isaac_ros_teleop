@@ -5,7 +5,7 @@ SPDX-License-Identifier: Apache-2.0
 -->
 <package format="3">
   <name>teleop_ros2_interfaces</name>
-  <version>5.0.0</version>
+  <version>5.1.0</version>
   <description>Custom ROS 2 interfaces for Isaac Teleop.</description>
   <maintainer email="isaac-ros-maintainers@nvidia.com">Isaac ROS Maintainers</maintainer>
   <license>Apache-2.0</license>
